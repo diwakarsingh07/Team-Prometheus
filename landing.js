@@ -712,10 +712,19 @@ document.addEventListener('click', e => {
   let imgOld = new Image();
   let imgNew = new Image();
   let oldReady = false, newReady = false;
+
+  const onLoadOld = () => { oldReady = true; drawReveal(); };
+  const onLoadNew = () => { newReady = true; drawReveal(); };
+
+  imgOld.onload = onLoadOld;
+  imgNew.onload = onLoadNew;
+
   imgOld.src = 'tombaugh_1930.jpg';
   imgNew.src = 'spherex_infrared.jpg';
-  imgOld.onload = () => { oldReady = true; drawReveal(); };
-  imgNew.onload = () => { newReady = true; drawReveal(); };
+
+  // Check if already cached/completed immediately
+  if (imgOld.complete && imgOld.naturalWidth > 0) onLoadOld();
+  if (imgNew.complete && imgNew.naturalWidth > 0) onLoadNew();
 
   let mode = 'brush'; // brush | scan | split
   let brushR = 70;
@@ -754,11 +763,16 @@ document.addEventListener('click', e => {
   }
 
   function drawReveal() {
-    if (!oldReady || !newReady) return;
     rctx.clearRect(0, 0, W, H);
 
-    // Draw old (base 1930 plate)
-    rctx.drawImage(imgOld, 0, 0, W, H);
+    // If images are still streaming, draw starry placeholder or old image if ready
+    if (oldReady) {
+      rctx.drawImage(imgOld, 0, 0, W, H);
+    } else {
+      rctx.fillStyle = '#060a12';
+      rctx.fillRect(0, 0, W, H);
+    }
+    if (!oldReady || !newReady) return;
 
     if (mode === 'split') {
       const splitPx = splitX * W;
