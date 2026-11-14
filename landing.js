@@ -516,21 +516,7 @@ function initGSAP() {
     });
   }
 
-  // ── Resources Used Tech Cards Stagger ──
-  if (document.querySelector('.res-grid-tech')) {
-    gsap.from('.res-tech-card', {
-      opacity: 0,
-      y: 50,
-      stagger: 0.14,
-      duration: 0.8,
-      ease: 'power2.out',
-      scrollTrigger: {
-        trigger: '.res-grid-tech',
-        start: 'top 82%',
-        toggleActions: 'play none none reverse',
-      }
-    });
-  }
+  // Resources section cards have permanent 100% visibility (zero flickering)
 
   // ── Hero Rocket Smooth Mouse Parallax & Thruster Pulse ──
   const rocketCraft = document.querySelector('.rocket-craft-group');

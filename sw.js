@@ -6,7 +6,7 @@
    - Auto-purges old astronaut caches on activate
    ============================================================ */
 
-const CACHE_NAME = 'prometheus-v5-gemini';
+const CACHE_NAME = 'prometheus-v8-final';
 
 const PRECACHE_URLS = [
   '/',
