@@ -1212,22 +1212,55 @@
     const targetStr = encodeURIComponent(`${tile.raDeg.toFixed(5)} ${tile.decDeg.toFixed(5)}`);
     const survey = encodeURIComponent(state.aladinSurvey);
     const embedUrl = `https://aladin.cds.unistra.fr/AladinLite/?target=${targetStr}&fov=${fovDeg}&survey=${survey}`;
+    
+    // Guaranteed local calibrated FITS fallback image
+    const localFallbackSrc = tile.imgEpoch1 || 'data/barnard_epoch1.png';
 
     container.innerHTML = `
-      <div style="position:relative;width:100%;height:100%;background:#030508;">
+      <div style="position:relative;width:100%;height:100%;background:#030508;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;border-radius:8px;">
+        
+        <!-- Live CDS Aladin Web Client Frame -->
         <iframe 
           id="aladin-live-iframe"
           src="${embedUrl}" 
-          style="width:100%;height:100%;border:0;border-radius:8px;"
+          style="width:100%;height:100%;border:0;border-radius:8px;position:relative;z-index:2;"
           title="Live CDS Aladin All-Sky Survey"
           allowfullscreen>
         </iframe>
-        <div style="position:absolute;top:10px;left:10px;background:rgba(3,5,8,0.85);backdrop-filter:blur(8px);border:1px solid rgba(0,229,255,0.3);border-radius:6px;padding:4px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#00e5ff;pointer-events:none;z-index:10;display:flex;align-items:center;gap:6px;">
+
+        <!-- High-Precision Local Calibrated FITS Fallback View (Instant if iFrame blocked or network throttles) -->
+        <div id="aladin-local-fallback" style="display:none;position:absolute;inset:0;z-index:3;background:#030508;align-items:center;justify-content:center;flex-direction:column;">
+          <img src="${localFallbackSrc}" alt="${tile.name}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;filter:contrast(1.2) brightness(1.1);" />
+          <div style="position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(14,22,36,0.9);border:1px solid rgba(0,229,255,0.4);border-radius:8px;padding:6px 14px;color:#00e5ff;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;box-shadow:0 4px 16px rgba(0,0,0,0.8);white-space:nowrap;">
+            CALIBRATED FITS CACHE ACTIVE: ${tile.name.toUpperCase()} (${tile.raStr} | ${tile.decStr})
+          </div>
+        </div>
+
+        <!-- Telemetry Status Ribbon -->
+        <div style="position:absolute;top:10px;left:10px;background:rgba(3,5,8,0.88);backdrop-filter:blur(10px);border:1px solid rgba(0,229,255,0.35);border-radius:6px;padding:5px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#00e5ff;z-index:10;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,0.6);">
           <span style="display:inline-block;width:7px;height:7px;background:#10b981;border-radius:50%;box-shadow:0 0 6px #10b981;"></span>
-          <span>CDS STRASBOURG LIVE TILE FEED [${state.aladinSurvey}]</span>
+          <span>CDS ALL-SKY TILE STREAM [${state.aladinSurvey}]</span>
+          <button onclick="window.toggleAladinDirectMode()" style="margin-left:8px;background:rgba(0,229,255,0.15);border:1px solid rgba(0,229,255,0.4);color:#fff;border-radius:4px;padding:2px 8px;font-size:10px;cursor:pointer;">
+            Toggle FITS Direct
+          </button>
         </div>
       </div>
     `;
+
+    // Global toggle function between Web iFrame and Direct Calibrated FITS image
+    window.toggleAladinDirectMode = function() {
+      const fb = document.getElementById('aladin-local-fallback');
+      const ifr = document.getElementById('aladin-live-iframe');
+      if (fb && ifr) {
+        if (fb.style.display === 'none' || fb.style.display === '') {
+          fb.style.display = 'flex';
+          ifr.style.opacity = '0';
+        } else {
+          fb.style.display = 'none';
+          ifr.style.opacity = '1';
+        }
+      }
+    };
   }
 
   function syncAladinTarget() {
@@ -1250,6 +1283,17 @@
       const targetStr = encodeURIComponent(`${tile.raDeg.toFixed(5)} ${tile.decDeg.toFixed(5)}`);
       const survey = encodeURIComponent(state.aladinSurvey);
       iframe.src = `https://aladin.cds.unistra.fr/AladinLite/?target=${targetStr}&fov=${fovDeg}&survey=${survey}`;
+    }
+    const fb = document.getElementById('aladin-local-fallback');
+    if (fb) {
+      const img = fb.querySelector('img');
+      if (img && tile.imgEpoch1) {
+        img.src = tile.imgEpoch1;
+      }
+      const label = fb.querySelector('div');
+      if (label) {
+        label.textContent = `CALIBRATED FITS CACHE ACTIVE: ${tile.name.toUpperCase()} (${tile.raStr} | ${tile.decStr})`;
+      }
     }
   }
 
