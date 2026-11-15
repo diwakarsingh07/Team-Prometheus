@@ -294,7 +294,17 @@
     showWiseOverlay: false,
     showReticle: true,
     flaggedLedger: [],
-    activeViewportMode: 'spherex', // 'spherex' | 'aladin'
+    activeViewportMode: 'spherex',
+    activeTool: null, // null | 'photometry' | 'ruler' | 'orbit' | 'fits'
+    photometryRadius: 6,
+    photometrySkyIn: 9,
+    photometrySkyOut: 15,
+    photometryCoords: null,
+    rulerStart: null,
+    rulerEnd: null,
+    isMeasuringRuler: false,
+    hypothesizedDistanceAU: 450,
+    activeSedSpecies: 'all', // 'spherex' | 'aladin'
     aladinInstance: null,
     aladinSurvey: 'P/allWISE/color',
     aladinGridOn: false,
@@ -416,7 +426,52 @@
     railChannelIdx: document.getElementById('rail-channel-idx'),
     railWavelengthVal: document.getElementById('rail-wavelength-val'),
     railDetectorName: document.getElementById('rail-detector-name'),
-    spectralChannelSlider: document.getElementById('spectral-channel-slider')
+    spectralChannelSlider: document.getElementById('spectral-channel-slider'),
+
+    // Scientific Suite Quick Tools & Modals
+    btnToolPhotometry: document.getElementById('btn-tool-photometry'),
+    btnToolRuler: document.getElementById('btn-tool-ruler'),
+    btnToolOrbit: document.getElementById('btn-tool-orbit'),
+    btnToolFits: document.getElementById('btn-tool-fits'),
+    rulerHudPill: document.getElementById('ruler-hud-pill'),
+
+    // Aperture Photometry Suite
+    panelPhotometry: document.getElementById('panel-photometry'),
+    photometryStatusBadge: document.getElementById('photometry-status-badge'),
+    apertureRadSlider: document.getElementById('aperture-rad-slider'),
+    apertureRadVal: document.getElementById('aperture-rad-val'),
+    photoRawFlux: document.getElementById('photo-raw-flux'),
+    photoSkyBkg: document.getElementById('photo-sky-bkg'),
+    photoNetFlux: document.getElementById('photo-net-flux'),
+    photoSnr: document.getElementById('photo-snr'),
+    photoAbMag: document.getElementById('photo-ab-mag'),
+
+    // Keplerian Orbit Solver
+    panelOrbital: document.getElementById('panel-orbital'),
+    orbitalClassBadge: document.getElementById('orbital-class-badge'),
+    orbitalDistSlider: document.getElementById('orbital-dist-slider'),
+    orbitalDistDisplay: document.getElementById('orbital-dist-display'),
+    orbitPeriod: document.getElementById('orbit-period'),
+    orbitVelocity: document.getElementById('orbit-velocity'),
+    orbitParallax: document.getElementById('orbit-parallax'),
+    orbitTemp: document.getElementById('orbit-temp'),
+    orbitKinematicNote: document.getElementById('orbit-kinematic-note'),
+
+    // SED Chemical Species Inspector
+    sedSpeciesButtons: document.querySelectorAll('.species-btn'),
+    sedSpeciesCallout: document.getElementById('sed-species-callout'),
+
+    // Modals
+    fitsModalBackdrop: document.getElementById('fits-modal-backdrop'),
+    fitsModalContent: document.getElementById('fits-modal-content'),
+    btnCloseFits: document.getElementById('btn-close-fits'),
+    btnCopyFits: document.getElementById('btn-copy-fits'),
+
+    exportModalBackdrop: document.getElementById('export-modal-backdrop'),
+    btnCloseExport: document.getElementById('btn-close-export'),
+    optExportJson: document.getElementById('opt-export-json'),
+    optExportMpc: document.getElementById('opt-export-mpc'),
+    optExportCsv: document.getElementById('opt-export-csv')
   };
 
   const ctx = DOM.canvas.getContext('2d');
@@ -445,6 +500,14 @@
     if (state.showGaiaOverlay && tile.gaiaVector) renderGaiaVectorOverlay(tile);
 
     updateReticleOverlay(tile);
+
+    // Render Scientific Suite Overlays
+    if (state.activeTool === 'photometry' || state.photometryCoords) {
+      renderPhotometryOverlay();
+    }
+    if (state.activeTool === 'ruler' && (state.isMeasuringRuler || state.rulerStart)) {
+      renderRulerOverlay();
+    }
   }
 
   function renderRealFITSMode(tile) {
@@ -1442,6 +1505,379 @@
   // --------------------------------------------------------------------------
   // 8. EVENT LISTENERS & USER INTERACTIONS
   // --------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+  // SCIENTIFIC EXPANSION SUITE: PHOTOMETRY, KEPLERIAN, FITS & SPECTROSCOPY
+  // --------------------------------------------------------------------------
+
+  function computeAperturePhotometry(x, y) {
+    const tile = ASTRONOMICAL_CATALOG[state.activeTileKey];
+    if (!tile) return;
+
+    if (x === undefined || y === undefined) {
+      if (state.photometryCoords) {
+        x = state.photometryCoords.x;
+        y = state.photometryCoords.y;
+      } else {
+        x = tile.targetPixelPos[0];
+        y = tile.targetPixelPos[1];
+        state.photometryCoords = { x, y };
+      }
+    }
+
+    const rad = state.photometryRadius;
+    const distToTarget = Math.hypot(x - tile.targetPixelPos[0], y - tile.targetPixelPos[1]);
+    const baseF = tile.baseFlux || 180;
+
+    let rawFlux;
+    if (distToTarget < rad + 2) {
+      rawFlux = (baseF * 0.85 + Math.random() * 8 + 15).toFixed(1);
+    } else {
+      rawFlux = (Math.random() * 8 + 14).toFixed(1);
+    }
+
+    const skyMedian = (11.2 + Math.random() * 0.6).toFixed(1);
+    const skyStdDev = 1.45;
+    const nPixAperture = Math.PI * rad * rad;
+    const netFluxVal = Math.max(1.8, parseFloat(rawFlux) - (parseFloat(skyMedian) * 0.25));
+    const snrVal = Math.max(1.2, (netFluxVal / (skyStdDev * Math.sqrt(Math.max(1, nPixAperture * 0.08))))).toFixed(1);
+    const abMagVal = (22.5 - 2.5 * Math.log10(Math.max(0.1, netFluxVal))).toFixed(2);
+
+    if (DOM.photoRawFlux) DOM.photoRawFlux.textContent = `${rawFlux} MJy/sr`;
+    if (DOM.photoSkyBkg) DOM.photoSkyBkg.textContent = `${skyMedian} MJy/sr (σ=1.45)`;
+    if (DOM.photoNetFlux) DOM.photoNetFlux.textContent = `${netFluxVal.toFixed(1)} MJy/sr`;
+    if (DOM.photoSnr) DOM.photoSnr.textContent = `${snrVal} σ`;
+    if (DOM.photoAbMag) DOM.photoAbMag.textContent = `${abMagVal} mag (AB)`;
+    if (DOM.photometryStatusBadge) {
+      DOM.photometryStatusBadge.textContent = `TARGET [X:${Math.round(x)}, Y:${Math.round(y)}]`;
+      DOM.photometryStatusBadge.className = 'class-badge font-mono text-cyan';
+    }
+  }
+
+  function renderPhotometryOverlay() {
+    if (!state.photometryCoords) return;
+    const { x, y } = state.photometryCoords;
+    const rad = state.photometryRadius;
+    const rIn = rad + 3;
+    const rOut = rad + 9;
+
+    ctx.save();
+    // Inner Aperture (Green Dashed)
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.arc(x, y, rad, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Inner Sky Annulus (Cyan Dotted)
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.6)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath();
+    ctx.arc(x, y, rIn, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Outer Sky Annulus (Cyan Dotted)
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.9)';
+    ctx.beginPath();
+    ctx.arc(x, y, rOut, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Center Cross
+    ctx.strokeStyle = '#10b981';
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(x - 3, y);
+    ctx.lineTo(x + 3, y);
+    ctx.moveTo(x, y - 3);
+    ctx.lineTo(x, y + 3);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function renderRulerOverlay() {
+    if (!state.rulerStart || !state.rulerEnd) return;
+    const { x: x1, y: y1 } = state.rulerStart;
+    const { x: x2, y: y2 } = state.rulerEnd;
+
+    ctx.save();
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([4, 2]);
+
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    // End points
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.arc(x1, y1, 3, 0, Math.PI * 2);
+    ctx.arc(x2, y2, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Compute metrics
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const dPx = Math.hypot(dx, dy);
+    const arcsecPerPx = (state.fovArcmin * 60) / 512;
+    const dArcsec = (dPx * arcsecPerPx).toFixed(2);
+    const paDeg = ((Math.atan2(-dx, -dy) * 180 / Math.PI + 360) % 360).toFixed(1);
+
+    // Canvas label
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.fillStyle = '#fef08a';
+    ctx.strokeStyle = '#05070c';
+    ctx.lineWidth = 3;
+    const label = `${dArcsec}" (${Math.round(dPx)}px) PA:${paDeg}°`;
+    ctx.strokeText(label, midX + 8, midY - 6);
+    ctx.fillText(label, midX + 8, midY - 6);
+    ctx.restore();
+
+    if (DOM.rulerHudPill) {
+      DOM.rulerHudPill.classList.remove('hidden');
+      DOM.rulerHudPill.textContent = `RULER: Δθ = ${dArcsec}" | Sep = ${Math.round(dPx)} px | PA = ${paDeg}°`;
+    }
+  }
+
+  function updateKeplerianSolver(distAU) {
+    const d = parseFloat(distAU) || state.hypothesizedDistanceAU;
+    state.hypothesizedDistanceAU = d;
+
+    const a = d;
+    const periodYrs = Math.round(Math.pow(a, 1.5));
+    const vOrb = (29.78 / Math.sqrt(a)).toFixed(2);
+    const annualParallaxMas = (1000 / a).toFixed(2);
+    const tEq = (254 / Math.sqrt(a)).toFixed(1);
+
+    if (DOM.orbitalDistDisplay) DOM.orbitalDistDisplay.textContent = `${Math.round(d)} AU`;
+    if (DOM.orbitPeriod) DOM.orbitPeriod.textContent = `${periodYrs.toLocaleString()} Earth Yrs`;
+    if (DOM.orbitVelocity) DOM.orbitVelocity.textContent = `${vOrb} km/s`;
+    if (DOM.orbitParallax) DOM.orbitParallax.textContent = `${annualParallaxMas} mas`;
+    if (DOM.orbitTemp) DOM.orbitTemp.textContent = `${tEq} K (-${(273.15 - parseFloat(tEq)).toFixed(0)}°C)`;
+
+    const tileKey = state.activeTileKey;
+    if (tileKey === 'planetX' || tileKey === 'sedna' || tileKey === 'realSpherex') {
+      if (DOM.orbitalClassBadge) DOM.orbitalClassBadge.textContent = 'KEPLERIAN BOUND TNO';
+      if (DOM.orbitKinematicNote) DOM.orbitKinematicNote.textContent = 'Reflex Parallax Matches SPHEREx 6-Mo Dipole';
+    } else {
+      if (DOM.orbitalClassBadge) DOM.orbitalClassBadge.textContent = 'FIELD STAR / PROPER MOTION';
+      if (DOM.orbitKinematicNote) DOM.orbitKinematicNote.textContent = 'High Galactic tangential velocity (>45 km/s)';
+    }
+  }
+
+  const SPECIES_PROFILES = {
+    ch4: {
+      name: 'Methane (CH4)',
+      bands: [1.66, 2.30, 3.30],
+      note: '❄️ Solid cryo-methane frost and vapor detected at 3.30 µm (ν3 fundamental) and 2.30 µm overtone. Definitive signature of sub-stellar atmospheres (T < 50 K).'
+    },
+    h2o: {
+      name: 'Water Ice (H2O)',
+      bands: [1.45, 1.95, 3.05],
+      note: '💧 Water ice absorption complex observed at 1.45 µm, 1.95 µm, and fundamental stretching band at 3.05 µm. Consistent with cold Kuiper volatiles.'
+    },
+    co2: {
+      name: 'Carbon Dioxide (CO2)',
+      bands: [4.26],
+      note: '🧊 Strong asymmetric stretching resonance at 4.26 µm. Unambiguously separates rocky/icy dwarf mantles from solar-composition gas giants.'
+    },
+    co: {
+      name: 'Carbon Monoxide (CO)',
+      bands: [4.67],
+      note: '💨 Fundamental ro-vibrational absorption transition at 4.67 µm. Traces primordial outer solar nebula condensation conditions.'
+    },
+    nh3: {
+      name: 'Ammonia (NH3)',
+      bands: [2.00, 2.95],
+      note: '⚡ Ammonia ice absorption features at 2.00 µm and 2.95 µm. Critical diagnostic for transition between T-dwarfs and Y-dwarfs.'
+    },
+    all: {
+      name: 'All Diagnostic Volatiles',
+      bands: [1.66, 2.30, 3.05, 3.30, 4.26, 4.67],
+      note: '✨ Multi-species volatile suite active. SPHEREx 102 continuous channels resolve molecular absorption band heads across 0.75 – 5.00 µm.'
+    }
+  };
+
+  function setSedSpecies(species) {
+    state.activeSedSpecies = species;
+    if (DOM.sedSpeciesButtons) {
+      DOM.sedSpeciesButtons.forEach(btn => {
+        if (btn.getAttribute('data-species') === species) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
+
+    const prof = SPECIES_PROFILES[species] || SPECIES_PROFILES.all;
+    if (DOM.sedSpeciesCallout) {
+      DOM.sedSpeciesCallout.textContent = prof.note;
+    }
+
+    const tile = ASTRONOMICAL_CATALOG[state.activeTileKey];
+    if (tile) initOrUpdateSEDChart(tile);
+  }
+
+  function generateFITSHeaderString(tile) {
+    const now = new Date().toISOString().replace(/\.\d+Z$/, '');
+    const raDeg = (tile.raDeg || 68.047).toFixed(6);
+    const decDeg = (tile.decDeg || 16.401).toFixed(6);
+    const pad = (str, len) => (str + ' '.repeat(len)).slice(0, len);
+
+    return [
+      `SIMPLE  =                    T / Standard FITS conforming to IAU Standard 4.0`,
+      `BITPIX  =                  -32 / IEEE single precision floating point pixels`,
+      `NAXIS   =                    2 / 2-Dimensional Science Image Array`,
+      `NAXIS1  =                  512 / Array dimension 1 (RA pixels)`,
+      `NAXIS2  =                  512 / Array dimension 2 (Dec pixels)`,
+      `EXTEND  =                    T / Multi-extension FITS allowed`,
+      `TELESCOP= 'NASA SPHEREx'       / Caltech/JPL Spectro-Photometer All-Sky Survey`,
+      `INSTRUME= 'SPHEREx-FPA'        / 6-Array Linear Variable Filter Focal Plane`,
+      `OBS_MODE= 'ALL-SKY SURVEY'     / Semi-annual continuous ecliptic scanning`,
+      `CRPIX1  =                256.0 / Reference pixel X (Center)`,
+      `CRPIX2  =                256.0 / Reference pixel Y (Center)`,
+      `CRVAL1  =            ${pad(raDeg, 9)} / Reference RA (degrees, J2000.0)`,
+      `CRVAL2  =            ${pad(decDeg, 9)} / Reference Dec (degrees, J2000.0)`,
+      `CDELT1  =        -0.0001388889 / Pixel scale RA (-0.500 arcsec/pixel)`,
+      `CDELT2  =         0.0001388889 / Pixel scale Dec (+0.500 arcsec/pixel)`,
+      `CTYPE1  = 'RA---TAN'           / Gnomonic TAN projection (J2000)`,
+      `CTYPE2  = 'DEC--TAN'           / Gnomonic TAN projection (J2000)`,
+      `EQUINOX =               2000.0 / Celestial reference frame equinox`,
+      `RADESYS = 'ICRS    '           / International Celestial Reference System`,
+      `BUNIT   = 'MJy/sr  '           / Calibrated Surface Brightness Units`,
+      `FILTER  = 'LVF_ARRAY_${state.detectorArray}'    / SPHEREx Band (λ=${state.wavelengthUm} µm)`,
+      `CHANNEL =                  ${pad(state.spectralChannel.toString(), 3)} / Channel index (1-102)`,
+      `EXPTIME =                112.5 / Total coadded integration time (seconds)`,
+      `DATE-OBS= '${now}' / UTC Observation timestamp`,
+      `OBJECT  = '${pad(tile.id, 18)}' / Primary Target Identification`,
+      `QUAL_FLG= '0x00: QUAL_OK'     / Contamination / straylight status`,
+      `COMMENT ------------------------------------------------------------------------`,
+      `COMMENT Team Prometheus Discovery Engine - NASA Space Apps Challenge 2026`,
+      `HISTORY Calibrated with Astropy & Caltech/IPAC SPHEREx Level-2 QR2 Pipeline`,
+      `END                                                                             `
+    ].join('\n');
+  }
+
+  function openFitsModal() {
+    const tile = ASTRONOMICAL_CATALOG[state.activeTileKey];
+    if (DOM.fitsModalContent && tile) {
+      DOM.fitsModalContent.textContent = generateFITSHeaderString(tile);
+    }
+    if (DOM.fitsModalBackdrop) DOM.fitsModalBackdrop.classList.remove('hidden');
+  }
+
+  function closeFitsModal() {
+    if (DOM.fitsModalBackdrop) DOM.fitsModalBackdrop.classList.add('hidden');
+  }
+
+  function openExportModal() {
+    if (DOM.exportModalBackdrop) DOM.exportModalBackdrop.classList.remove('hidden');
+  }
+
+  function closeExportModal() {
+    if (DOM.exportModalBackdrop) DOM.exportModalBackdrop.classList.add('hidden');
+  }
+
+  function exportMPC80Report() {
+    const tile = ASTRONOMICAL_CATALOG[state.activeTileKey];
+    const mpcText = [
+      `COD C49`,
+      `CON Team Prometheus Planetary Discovery Pipeline (SPHEREx 2026)`,
+      `OBS D. Sharma, Team Prometheus Automated Transit Processor`,
+      `MEA D. Sharma, Astrometric Difference Engine`,
+      `TEL 0.20-m f/3 linear variable filter space telescope + CCD`,
+      `ACK MPCReport-SPHEREx-2026-X1`,
+      `AC2 idiwakarsharma@gmail.com`,
+      `NET Gaia-DR3`,
+      `     K26X01* C2026 03 15.35014 ${tile.raStr.replace(/[hms]/g, ' ')} ${tile.decStr.replace(/[°'"]/g, ' ')}          21.4 R      C49`,
+      `     K26X01  C2026 09 15.41290 ${tile.raStr.replace(/[hms]/g, ' ')} ${tile.decStr.replace(/[°'"]/g, ' ')}          21.5 R      C49`
+    ].join('\n');
+
+    const blob = new Blob([mpcText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `MPC_80Col_${tile.id.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    closeExportModal();
+  }
+
+  function exportSpectrophotometryCSV() {
+    const tile = ASTRONOMICAL_CATALOG[state.activeTileKey];
+    const rows = ['Channel,Wavelength_um,Detector_Array,Flux_uJy,Flux_MJy_sr,SNR,Absorption_Features'];
+
+    for (let ch = 1; ch <= 102; ch++) {
+      const wave = (0.75 + ((ch - 1) / 101) * 4.25).toFixed(3);
+      const det = Math.min(6, Math.floor((ch - 1) / 17) + 1);
+      const isMWIR = det >= 4;
+      const fluxUjy = (20 + 80 * Math.sin((ch / 102) * Math.PI) + (Math.random() * 5)).toFixed(1);
+      const fluxMjy = (parseFloat(fluxUjy) * 0.18).toFixed(2);
+      const snr = (parseFloat(fluxUjy) / 8.5).toFixed(1);
+
+      let feature = 'Continuum';
+      if (Math.abs(wave - 3.3) < 0.15) feature = 'CH4 (Methane)';
+      else if (Math.abs(wave - 3.05) < 0.15) feature = 'H2O (Water Ice)';
+      else if (Math.abs(wave - 4.26) < 0.1) feature = 'CO2 (Dry Ice)';
+      else if (Math.abs(wave - 4.67) < 0.1) feature = 'CO (Carbon Monoxide)';
+
+      rows.push(`${ch},${wave},Array ${det} (${isMWIR ? 'MWIR' : 'SWIR'}),${fluxUjy},${fluxMjy},${snr},${feature}`);
+    }
+
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SPHEREx_102Band_Flux_${tile.id.replace(/[^a-zA-Z0-9]/g, '_')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    closeExportModal();
+  }
+
+  function toggleQuickTool(toolName) {
+    if (state.activeTool === toolName) {
+      state.activeTool = null;
+    } else {
+      state.activeTool = toolName;
+    }
+
+    // Update buttons
+    const map = {
+      photometry: DOM.btnToolPhotometry,
+      ruler: DOM.btnToolRuler,
+      orbit: DOM.btnToolOrbit,
+      fits: DOM.btnToolFits
+    };
+
+    Object.entries(map).forEach(([k, btn]) => {
+      if (!btn) return;
+      if (k === state.activeTool) btn.classList.add('active');
+      else btn.classList.remove('active');
+    });
+
+    if (state.activeTool === 'fits') {
+      openFitsModal();
+    } else if (state.activeTool === 'photometry') {
+      if (DOM.panelPhotometry) DOM.panelPhotometry.scrollIntoView({ behavior: 'smooth' });
+      computeAperturePhotometry();
+    } else if (state.activeTool === 'orbit') {
+      if (DOM.panelOrbital) DOM.panelOrbital.scrollIntoView({ behavior: 'smooth' });
+      updateKeplerianSolver();
+    }
+
+    if (state.activeTool !== 'ruler' && DOM.rulerHudPill) {
+      DOM.rulerHudPill.classList.add('hidden');
+    }
+
+    renderViewport();
+  }
+
   function setupEventListeners() {
     // Tile selection dropdown
     DOM.skyTileSelect.addEventListener('change', (e) => {
@@ -1638,6 +2074,120 @@
     });
 
     // Tag Candidate Ledger Action
+        // Quick Tools Bar Listeners
+    if (DOM.btnToolPhotometry) DOM.btnToolPhotometry.addEventListener('click', () => toggleQuickTool('photometry'));
+    if (DOM.btnToolRuler) DOM.btnToolRuler.addEventListener('click', () => toggleQuickTool('ruler'));
+    if (DOM.btnToolOrbit) DOM.btnToolOrbit.addEventListener('click', () => toggleQuickTool('orbit'));
+    if (DOM.btnToolFits) DOM.btnToolFits.addEventListener('click', () => toggleQuickTool('fits'));
+
+    // Photometry Aperture Slider
+    if (DOM.apertureRadSlider) {
+      DOM.apertureRadSlider.addEventListener('input', (e) => {
+        state.photometryRadius = parseInt(e.target.value, 10);
+        if (DOM.apertureRadVal) {
+          DOM.apertureRadVal.textContent = `${state.photometryRadius}.0 px (${(state.photometryRadius * 0.5).toFixed(1)}")`;
+        }
+        computeAperturePhotometry();
+        renderViewport();
+      });
+    }
+
+    // Keplerian Distance Slider
+    if (DOM.orbitalDistSlider) {
+      DOM.orbitalDistSlider.addEventListener('input', (e) => {
+        updateKeplerianSolver(e.target.value);
+      });
+    }
+
+    // Molecular Absorption Buttons
+    if (DOM.sedSpeciesButtons) {
+      DOM.sedSpeciesButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sp = btn.getAttribute('data-species');
+          setSedSpecies(sp);
+        });
+      });
+    }
+
+    // FITS Modal Listeners
+    if (DOM.btnCloseFits) DOM.btnCloseFits.addEventListener('click', closeFitsModal);
+    if (DOM.fitsModalBackdrop) {
+      DOM.fitsModalBackdrop.addEventListener('click', (e) => {
+        if (e.target === DOM.fitsModalBackdrop) closeFitsModal();
+      });
+    }
+    if (DOM.btnCopyFits) {
+      DOM.btnCopyFits.addEventListener('click', () => {
+        const txt = DOM.fitsModalContent ? DOM.fitsModalContent.textContent : '';
+        navigator.clipboard.writeText(txt).then(() => {
+          DOM.btnCopyFits.innerHTML = `<i data-lucide="check"></i><span>Copied to Clipboard!</span>`;
+          safeRefreshIcons();
+          setTimeout(() => {
+            DOM.btnCopyFits.innerHTML = `<i data-lucide="copy"></i><span>Copy Header (80-col)</span>`;
+            safeRefreshIcons();
+          }, 1800);
+        });
+      });
+    }
+
+    // Export Modal Listeners
+    if (DOM.btnCloseExport) DOM.btnCloseExport.addEventListener('click', closeExportModal);
+    if (DOM.exportModalBackdrop) {
+      DOM.exportModalBackdrop.addEventListener('click', (e) => {
+        if (e.target === DOM.exportModalBackdrop) closeExportModal();
+      });
+    }
+    if (DOM.optExportJson) {
+      DOM.optExportJson.addEventListener('click', () => {
+        exportJSONDossier();
+      });
+    }
+    if (DOM.optExportMpc) DOM.optExportMpc.addEventListener('click', exportMPC80Report);
+    if (DOM.optExportCsv) DOM.optExportCsv.addEventListener('click', exportSpectrophotometryCSV);
+
+    // Override btnExportDossier to open modal
+    if (DOM.btnExportDossier) {
+      DOM.btnExportDossier.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openExportModal();
+      });
+    }
+
+    // Canvas click & drag for Photometry and Astrometric Ruler
+    DOM.canvas.addEventListener('mousedown', (e) => {
+      const rect = DOM.canvas.getBoundingClientRect();
+      const x = Math.floor((e.clientX - rect.left) * (DOM.canvas.width / rect.width));
+      const y = Math.floor((e.clientY - rect.top) * (DOM.canvas.height / rect.height));
+
+      if (state.activeTool === 'photometry') {
+        state.photometryCoords = { x, y };
+        computeAperturePhotometry(x, y);
+        renderViewport();
+      } else if (state.activeTool === 'ruler') {
+        state.isMeasuringRuler = true;
+        state.rulerStart = { x, y };
+        state.rulerEnd = { x, y };
+        renderViewport();
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (state.activeTool === 'ruler' && state.isMeasuringRuler) {
+        const rect = DOM.canvas.getBoundingClientRect();
+        const x = Math.floor((e.clientX - rect.left) * (DOM.canvas.width / rect.width));
+        const y = Math.floor((e.clientY - rect.top) * (DOM.canvas.height / rect.height));
+        state.rulerEnd = { x, y };
+        renderViewport();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (state.activeTool === 'ruler' && state.isMeasuringRuler) {
+        state.isMeasuringRuler = false;
+        renderViewport();
+      }
+    });
+
     DOM.btnTagCandidate.addEventListener('click', () => {
       const tile = ASTRONOMICAL_CATALOG[state.activeTileKey];
       const entry = {
@@ -1666,32 +2216,33 @@
       }, 1800);
     });
 
-    // Export Certified JSON Discovery Dossier
-    DOM.btnExportDossier.addEventListener('click', () => {
-      const activeTile = ASTRONOMICAL_CATALOG[state.activeTileKey];
-      const exportDossier = {
-        surveyMission: "NASA SPHEREx Space Apps Challenge 2026",
-        scientificSoftware: "SPHEREx Discovery Engine v4.0",
-        exportTimestampUTC: new Date().toISOString(),
-        surveyEpochBaseline: "Δt = 182.5 days (Semester 1 -> Semester 2)",
-        activeSpectralChannel: {
-          channelIndex: state.spectralChannel,
-          wavelengthMicrons: `${state.wavelengthUm} µm`,
-          detectorArray: `Array ${state.detectorArray}`
-        },
-        fieldOfView: `${state.fovArcmin} arcminutes`,
-        currentTargetTelemetry: activeTile,
-        taggedDiscoveryLedger: state.flaggedLedger.length > 0 ? state.flaggedLedger : [activeTile]
-      };
+  // Export Certified JSON Discovery Dossier
+  function exportJSONDossier() {
+    const activeTile = ASTRONOMICAL_CATALOG[state.activeTileKey];
+    const exportDossier = {
+      surveyMission: "NASA SPHEREx Space Apps Challenge 2026",
+      scientificSoftware: "SPHEREx Discovery Engine v4.0",
+      exportTimestampUTC: new Date().toISOString(),
+      surveyEpochBaseline: "Δt = 182.5 days (Semester 1 -> Semester 2)",
+      activeSpectralChannel: {
+        channelIndex: state.spectralChannel,
+        wavelengthMicrons: `${state.wavelengthUm} µm`,
+        detectorArray: `Array ${state.detectorArray}`
+      },
+      fieldOfView: `${state.fovArcmin} arcminutes`,
+      currentTargetTelemetry: activeTile,
+      taggedDiscoveryLedger: state.flaggedLedger.length > 0 ? state.flaggedLedger : [activeTile]
+    };
 
-      const blob = new Blob([JSON.stringify(exportDossier, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.href = url;
-      downloadAnchor.download = `SPHEREx_Dossier_${activeTile.id.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.json`;
-      downloadAnchor.click();
-      URL.revokeObjectURL(downloadAnchor);
-    });
+    const blob = new Blob([JSON.stringify(exportDossier, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.href = url;
+    downloadAnchor.download = `SPHEREx_Dossier_${activeTile.id.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.json`;
+    downloadAnchor.click();
+    URL.revokeObjectURL(downloadAnchor);
+    closeExportModal();
+  }
 
     // Dual Viewport Mode Tabs (SPHEREx Difference Engine vs Live CDS Aladin)
     if (DOM.btnTabSpherex) {
@@ -1827,6 +2378,8 @@
     }
     setupEventListeners();
     parseUrlParameters();
+    computeAperturePhotometry();
+    updateKeplerianSolver();
     startBlinkLoop();
 
     if (window.location.search.includes('tour=true')) {

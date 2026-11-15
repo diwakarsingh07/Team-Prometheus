@@ -6,7 +6,7 @@
    - Auto-purges old astronaut caches on activate
    ============================================================ */
 
-const CACHE_NAME = 'prometheus-v9-allfix';
+const CACHE_NAME = 'prometheus-v10-scientist-suite';
 
 const PRECACHE_URLS = [
   '/',

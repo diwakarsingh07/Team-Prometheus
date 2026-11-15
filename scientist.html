@@ -45,7 +45,7 @@
   </script>
   
   <!-- Application Stylesheet -->
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=10">
 </head>
 <body class="app-body">
 
@@ -428,6 +428,26 @@
         </button>
       </div>
 
+            <!-- Interactive Scientific Tools Bar -->
+      <div class="viewport-quick-tools font-mono">
+        <button id="btn-tool-photometry" class="btn-quick-tool" title="Circular Aperture Photometry (Measure Flux & SNR)">
+          <i data-lucide="circle-dot"></i>
+          <span>Aperture Photometry</span>
+        </button>
+        <button id="btn-tool-ruler" class="btn-quick-tool" title="Astrometric Distance & Angle Ruler">
+          <i data-lucide="ruler"></i>
+          <span>Astrometric Ruler</span>
+        </button>
+        <button id="btn-tool-orbit" class="btn-quick-tool" title="Keplerian Orbital Solver & Distance Estimator">
+          <i data-lucide="orbit"></i>
+          <span>Keplerian Solver</span>
+        </button>
+        <button id="btn-tool-fits" class="btn-quick-tool" title="View Real-Time FITS & WCS Astrometric Header">
+          <i data-lucide="file-code"></i>
+          <span>FITS Header</span>
+        </button>
+      </div>
+
       <!-- Top Image Viewport Coordinates & Status Bar -->
       <div class="viewport-hud font-mono">
         <div class="hud-cluster">
@@ -450,6 +470,7 @@
       <!-- Astronomical Canvas Container -->
       <div class="canvas-stage" id="canvas-stage">
         <canvas id="astronomical-canvas" width="512" height="512" class="astronomical-canvas"></canvas>
+        <div id="ruler-hud-pill" class="ruler-hud-pill hidden">Δθ: 0.0" | PA: 0.0°</div>
 
         <!-- Dynamic Candidate Reticle Overlay -->
         <div id="target-reticle" class="target-reticle hidden">
@@ -542,6 +563,100 @@
         </div>
       </section>
 
+            <!-- Interactive Aperture Photometry Suite -->
+      <section id="panel-photometry" class="photometry-panel">
+        <div class="panel-header justify-between border-bottom">
+          <div class="flex items-center gap-2">
+            <i data-lucide="circle-dot" class="panel-icon text-cyan"></i>
+            <h2 class="telemetry-title">Aperture Photometry</h2>
+          </div>
+          <span id="photometry-status-badge" class="class-badge font-mono">STANDBY (CLICK TARGET)</span>
+        </div>
+
+        <div class="sub-control-block">
+          <div class="slider-meta font-mono">
+            <span>Aperture Radius (r_ap):</span>
+            <span id="aperture-rad-val" class="slider-val text-cyan">6.0 px (3.0")</span>
+          </div>
+          <input type="range" id="aperture-rad-slider" min="3" max="15" value="6" step="1" class="custom-slider">
+          <div class="slider-ticks font-mono">
+            <span>3 px (1.5")</span>
+            <span>6 px (3.0")</span>
+            <span>15 px (7.5")</span>
+          </div>
+        </div>
+
+        <div class="tool-metric-grid font-mono">
+          <div class="tool-metric-card">
+            <span class="tool-metric-k">Aperture Flux (Raw)</span>
+            <span id="photo-raw-flux" class="tool-metric-v text-white">-- MJy/sr</span>
+          </div>
+          <div class="tool-metric-card">
+            <span class="tool-metric-k">Sky Median (Annulus)</span>
+            <span id="photo-sky-bkg" class="tool-metric-v text-slate">-- MJy/sr</span>
+          </div>
+          <div class="tool-metric-card">
+            <span class="tool-metric-k">Net Source Flux</span>
+            <span id="photo-net-flux" class="tool-metric-v text-cyan font-bold">-- MJy/sr</span>
+          </div>
+          <div class="tool-metric-card">
+            <span class="tool-metric-k">Photometric SNR</span>
+            <span id="photo-snr" class="tool-metric-v text-emerald font-bold">-- σ</span>
+          </div>
+          <div class="tool-metric-card full-width">
+            <span class="tool-metric-k">Calibrated AB Magnitude (m_AB)</span>
+            <span id="photo-ab-mag" class="tool-metric-v text-amber font-bold">-- mag (Z_pt = 21.50)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Keplerian Orbital Dynamics & Distance Estimator -->
+      <section id="panel-orbital" class="orbital-panel">
+        <div class="panel-header justify-between border-bottom">
+          <div class="flex items-center gap-2">
+            <i data-lucide="orbit" class="panel-icon text-amber"></i>
+            <h2 class="telemetry-title">Keplerian Orbit Solver</h2>
+          </div>
+          <span id="orbital-class-badge" class="class-badge font-mono">OUTER SOLAR SYSTEM</span>
+        </div>
+
+        <div class="sub-control-block">
+          <div class="slider-meta font-mono">
+            <span>Hypothesized Distance (d):</span>
+            <span id="orbital-dist-display" class="slider-val text-amber">450 AU</span>
+          </div>
+          <input type="range" id="orbital-dist-slider" min="50" max="1000" value="450" step="10" class="custom-slider">
+          <div class="slider-ticks font-mono">
+            <span>50 AU (Kuiper)</span>
+            <span>450 AU (Planet X)</span>
+            <span>1000 AU (Oort)</span>
+          </div>
+        </div>
+
+        <div class="tool-metric-grid font-mono">
+          <div class="tool-metric-card">
+            <span class="tool-metric-k">Orbital Period (T)</span>
+            <span id="orbit-period" class="tool-metric-v text-cyan">9,545 Earth Yrs</span>
+          </div>
+          <div class="tool-metric-card">
+            <span class="tool-metric-k">Orbital Velocity (v)</span>
+            <span id="orbit-velocity" class="tool-metric-v text-slate">1.40 km/s</span>
+          </div>
+          <div class="tool-metric-card">
+            <span class="tool-metric-k">Annual Parallax (ϖ)</span>
+            <span id="orbit-parallax" class="tool-metric-v text-emerald font-bold">2.22 mas</span>
+          </div>
+          <div class="tool-metric-card">
+            <span class="tool-metric-k">Blackbody Temp (T_eq)</span>
+            <span id="orbit-temp" class="tool-metric-v text-amber font-bold">12.1 K</span>
+          </div>
+          <div class="tool-metric-card full-width">
+            <span class="tool-metric-k">Kinematic Solution</span>
+            <span id="orbit-kinematic-note" class="tool-metric-v text-white font-mono">Reflex Parallax Matches SPHEREx 6-Mo Dipole</span>
+          </div>
+        </div>
+      </section>
+
       <!-- 102-Band Spectral Energy Distribution (SED) Chart Panel -->
       <section class="sed-chart-panel">
         <div class="panel-header justify-between">
@@ -555,6 +670,18 @@
         </div>
 
         <!-- Chart.js Canvas Host -->
+                <!-- Atmospheric Molecular Absorption Line Inspector -->
+        <div class="sed-species-bar font-mono">
+          <button class="species-btn" data-species="ch4" title="Methane (CH4) 1.66 / 2.30 / 3.30 µm">❄️ CH₄ (Methane)</button>
+          <button class="species-btn" data-species="h2o" title="Water Ice (H2O) 1.45 / 1.95 / 3.05 µm">💧 H₂O (Water Ice)</button>
+          <button class="species-btn" data-species="co2" title="Carbon Dioxide (CO2) 4.26 µm">🧊 CO₂ (Dry Ice)</button>
+          <button class="species-btn" data-species="co" title="Carbon Monoxide (CO) 4.67 µm">💨 CO (Carbon Monoxide)</button>
+          <button class="species-btn" data-species="nh3" title="Ammonia (NH3) 2.00 / 2.95 µm">⚡ NH₃ (Ammonia)</button>
+          <button class="species-btn active" data-species="all" title="Overlay all diagnostic volatile species">✨ All Lines</button>
+        </div>
+        <div id="sed-species-callout" class="species-callout font-mono">
+          Diagnostic volatile absorption bands active. SPHEREx 102 channels distinguish cryogenic planetary atmospheres from stellar photospheres.
+        </div>
         <div class="chart-canvas-wrapper">
           <canvas id="sed-chart-canvas"></canvas>
         </div>
@@ -613,7 +740,70 @@
     </div>
   </footer>
 
+    <!-- FITS Header & WCS Coordinate Modal -->
+  <div id="fits-modal-backdrop" class="fits-modal-backdrop hidden">
+    <div class="fits-modal font-mono">
+      <div class="fits-modal-header">
+        <div class="fits-modal-title">
+          <i data-lucide="file-code" class="text-cyan"></i>
+          <span>NASA SPHEREx Level-2 FITS Astrometric Header (WCS IAU-2000)</span>
+        </div>
+        <button id="btn-close-fits" class="btn btn-xs">✕ Close</button>
+      </div>
+      <div id="fits-modal-content" class="fits-modal-body"></div>
+      <div class="fits-modal-footer">
+        <span class="text-slate-muted text-xs">Conforms to IAU FITS Standard 4.0</span>
+        <button id="btn-copy-fits" class="btn btn-primary btn-xs">
+          <i data-lucide="copy"></i>
+          <span>Copy Header (80-col)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multi-Format Discovery Dossier Export Modal -->
+  <div id="export-modal-backdrop" class="fits-modal-backdrop hidden">
+    <div class="export-modal font-mono">
+      <div class="fits-modal-header">
+        <div class="fits-modal-title">
+          <i data-lucide="file-down" class="text-cyan"></i>
+          <span>Export Scientific Discovery Dossier</span>
+        </div>
+        <button id="btn-close-export" class="btn btn-xs">✕ Close</button>
+      </div>
+      <div style="padding: 16px;">
+        <p style="font-size: 11px; color: #94a3b8; margin-bottom: 14px;" class="font-sans">
+          Select certified export format for peer review, NASA Planetary Data System (PDS), or Minor Planet Center (MPC) submission:
+        </p>
+        
+        <div class="export-option-card" id="opt-export-json">
+          <div class="export-opt-icon"><i data-lucide="file-json"></i></div>
+          <div>
+            <div class="export-opt-title">NASA Certified Discovery Dossier (JSON)</div>
+            <div class="export-opt-desc">Full telemetry metadata, 102-band flux vectors, astrometric errors, flagged candidate coordinates.</div>
+          </div>
+        </div>
+
+        <div class="export-option-card" id="opt-export-mpc">
+          <div class="export-opt-icon"><i data-lucide="file-text"></i></div>
+          <div>
+            <div class="export-opt-title">IAU Minor Planet Center (MPC) 80-Column Astrometry (.txt)</div>
+            <div class="export-opt-desc">Official standardized MPC format for orbital cataloging and Planetary Defense verification.</div>
+          </div>
+        </div>
+
+        <div class="export-option-card" id="opt-export-csv">
+          <div class="export-opt-icon"><i data-lucide="table"></i></div>
+          <div>
+            <div class="export-opt-title">102-Band Spectrophotometric Data Table (.csv)</div>
+            <div class="export-opt-desc">Wavelength (0.75-5.00 µm), physical flux (µJy & MJy/sr), SNR, and detector array channel mapping.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Main Application Script -->
-  <script src="app.js"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>
