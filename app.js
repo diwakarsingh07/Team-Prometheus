@@ -510,55 +510,74 @@
     }
   }
 
+    function drawScaledFITSImage(img, opacity = 1.0) {
+    if (!img.complete || img.naturalWidth <= 0) return;
+    const fovScale = 15 / state.fovArcmin;
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    if (fovScale === 1) {
+      ctx.drawImage(img, 0, 0, DOM.canvas.width, DOM.canvas.height);
+    } else {
+      ctx.translate(256, 256);
+      ctx.scale(fovScale, fovScale);
+      ctx.translate(-256, -256);
+      ctx.drawImage(img, 0, 0, 512, 512);
+    }
+    ctx.restore();
+  }
+
   function renderRealFITSMode(tile) {
+    const fovScale = 15 / state.fovArcmin;
+
     if (state.activeMode === 'blink') {
       DOM.diffIndicatorBadge.classList.add('hidden');
       const img = state.activeEpoch === 1 ? realFITSImages.epoch1 : realFITSImages.epoch2;
 
-      DOM.viewportEpochTitle.textContent = `REAL SPHEREx FITS: EPOCH ${state.activeEpoch} (${state.activeEpoch === 1 ? 'OBS: 2026W08_2A' : 'OBS: 2026W07_2A'})`;
+      DOM.viewportEpochTitle.textContent = `REAL SPHEREx FITS: EPOCH ${state.activeEpoch} (${state.activeEpoch === 1 ? 'OBS: 2026W08_2A' : 'OBS: 2026W07_2A'}) [FOV: ${state.fovArcmin}']`;
       DOM.viewportEpochTitle.className = state.activeEpoch === 1 ? 'hud-epoch-text text-cyan' : 'hud-epoch-text text-amber';
 
-      if (img.complete && img.naturalWidth > 0) {
-        ctx.drawImage(img, 0, 0, DOM.canvas.width, DOM.canvas.height);
-        applyZScaleHistogramFilter();
-      }
+      drawScaledFITSImage(img);
+      applyZScaleHistogramFilter();
     } else if (state.activeMode === 'diff') {
       DOM.diffIndicatorBadge.classList.remove('hidden');
       DOM.diffBadgeText.textContent = 'PIXEL SUBTRACTION: ΔI = (EPOCH 2 − EPOCH 1)';
-      DOM.viewportEpochTitle.textContent = 'REAL SPHEREx FITS: COMPUTED DIFFERENCE ΔI';
+      DOM.viewportEpochTitle.textContent = `REAL SPHEREx FITS: COMPUTED DIFFERENCE ΔI [FOV: ${state.fovArcmin}']`;
       DOM.viewportEpochTitle.className = 'hud-epoch-text text-rose';
 
-      if (realFITSImages.diff.complete && realFITSImages.diff.naturalWidth > 0) {
-        ctx.drawImage(realFITSImages.diff, 0, 0, DOM.canvas.width, DOM.canvas.height);
-        applyZScaleHistogramFilter();
-      }
+      drawScaledFITSImage(realFITSImages.diff);
+      applyZScaleHistogramFilter();
     } else if (state.activeMode === 'stack') {
       DOM.diffIndicatorBadge.classList.remove('hidden');
       DOM.diffBadgeText.textContent = 'COADDITION: S/N BOOST = (EPOCH 1 + EPOCH 2) / 2';
-      DOM.viewportEpochTitle.textContent = 'REAL SPHEREx FITS: COADDED STACK (S/N BOOST)';
+      DOM.viewportEpochTitle.textContent = `REAL SPHEREx FITS: COADDED STACK [FOV: ${state.fovArcmin}']`;
       DOM.viewportEpochTitle.className = 'hud-epoch-text text-emerald';
 
-      if (realFITSImages.epoch1.complete && realFITSImages.epoch2.complete) {
-        ctx.globalAlpha = 1.0;
-        ctx.drawImage(realFITSImages.epoch1, 0, 0, DOM.canvas.width, DOM.canvas.height);
-        ctx.globalAlpha = 0.5;
-        ctx.drawImage(realFITSImages.epoch2, 0, 0, DOM.canvas.width, DOM.canvas.height);
-        ctx.globalAlpha = 1.0;
-        applyZScaleHistogramFilter();
-      }
+      drawScaledFITSImage(realFITSImages.epoch1, 1.0);
+      drawScaledFITSImage(realFITSImages.epoch2, 0.5);
+      applyZScaleHistogramFilter();
     } else if (state.activeMode === 'swipe') {
       DOM.diffIndicatorBadge.classList.add('hidden');
-      DOM.viewportEpochTitle.textContent = `REAL FITS: CURTAIN WIPE [${state.swipePct}%]`;
+      DOM.viewportEpochTitle.textContent = `REAL FITS: CURTAIN WIPE [${state.swipePct}%] [FOV: ${state.fovArcmin}']`;
       DOM.viewportEpochTitle.className = 'hud-epoch-text text-cyan';
 
       if (realFITSImages.epoch1.complete && realFITSImages.epoch2.complete) {
         const splitX = Math.round((state.swipePct / 100) * DOM.canvas.width);
-        if (splitX > 0) {
-          ctx.drawImage(realFITSImages.epoch1, 0, 0, splitX, 512, 0, 0, splitX, 512);
-        }
-        if (splitX < 512) {
-          ctx.drawImage(realFITSImages.epoch2, splitX, 0, 512 - splitX, 512, splitX, 0, 512 - splitX, 512);
-        }
+
+        // Draw Epoch 1 on left side
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, splitX, 512);
+        ctx.clip();
+        drawScaledFITSImage(realFITSImages.epoch1);
+        ctx.restore();
+
+        // Draw Epoch 2 on right side
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(splitX, 0, 512 - splitX, 512);
+        ctx.clip();
+        drawScaledFITSImage(realFITSImages.epoch2);
+        ctx.restore();
 
         // Divider Line & Handle
         ctx.strokeStyle = '#38bdf8';
@@ -582,13 +601,16 @@
       }
     } else if (state.activeMode === 'rgb') {
       DOM.diffIndicatorBadge.classList.add('hidden');
-      DOM.viewportEpochTitle.textContent = 'REAL FITS: RGB ANAGLYPH [RED: E1 | CYAN: E2]';
+      DOM.viewportEpochTitle.textContent = `REAL FITS: RGB ANAGLYPH [RED: E1 | CYAN: E2] [FOV: ${state.fovArcmin}']`;
       DOM.viewportEpochTitle.className = 'hud-epoch-text text-amber';
 
       if (realFITSImages.epoch1.complete && realFITSImages.epoch2.complete) {
-        ctx.drawImage(realFITSImages.epoch1, 0, 0, 512, 512);
+        ctx.clearRect(0, 0, 512, 512);
+        drawScaledFITSImage(realFITSImages.epoch1);
         const img1 = ctx.getImageData(0, 0, 512, 512);
-        ctx.drawImage(realFITSImages.epoch2, 0, 0, 512, 512);
+
+        ctx.clearRect(0, 0, 512, 512);
+        drawScaledFITSImage(realFITSImages.epoch2);
         const img2 = ctx.getImageData(0, 0, 512, 512);
 
         const combined = ctx.createImageData(512, 512);
@@ -606,16 +628,13 @@
       }
     } else if (state.activeMode === 'fade') {
       DOM.diffIndicatorBadge.classList.add('hidden');
-      DOM.viewportEpochTitle.textContent = `REAL FITS: DISSOLVE [${100 - state.fadePct}% E1 / ${state.fadePct}% E2]`;
+      DOM.viewportEpochTitle.textContent = `REAL FITS: DISSOLVE [${100 - state.fadePct}% E1 / ${state.fadePct}% E2] [FOV: ${state.fovArcmin}']`;
       DOM.viewportEpochTitle.className = 'hud-epoch-text text-cyan';
 
       if (realFITSImages.epoch1.complete && realFITSImages.epoch2.complete) {
         const alpha = state.fadePct / 100;
-        ctx.globalAlpha = 1.0;
-        ctx.drawImage(realFITSImages.epoch1, 0, 0, 512, 512);
-        ctx.globalAlpha = alpha;
-        ctx.drawImage(realFITSImages.epoch2, 0, 0, 512, 512);
-        ctx.globalAlpha = 1.0;
+        drawScaledFITSImage(realFITSImages.epoch1, 1.0);
+        drawScaledFITSImage(realFITSImages.epoch2, alpha);
         applyZScaleHistogramFilter();
       }
     }
@@ -1023,10 +1042,14 @@
     ctx.setLineDash([4, 4]);
 
     // Concentric thermal contours representing allWISE W1/W2 isophotes
+    const fovScale = 15 / state.fovArcmin;
     for (let rad = 40; rad <= 180; rad += 45) {
-      ctx.beginPath();
-      ctx.ellipse(256, 256, rad * 1.2, rad * 0.9, Math.PI / 6, 0, Math.PI * 2);
-      ctx.stroke();
+      const r = rad * fovScale;
+      if (r > 8 && r < 400) {
+        ctx.beginPath();
+        ctx.ellipse(256, 256, r * 1.2, r * 0.9, Math.PI / 6, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
     ctx.font = '9px JetBrains Mono';
     ctx.fillStyle = '#f59e0b';
@@ -1486,12 +1509,26 @@
 
   function setFov(fovArcmin, pushState = true) {
     state.fovArcmin = fovArcmin;
-    DOM.fovReadout.textContent = `${fovArcmin}' (${fovArcmin <= 5 ? 'Fine' : (fovArcmin <= 15 ? 'Standard' : 'Wide')})`;
+    const label = fovArcmin <= 5 ? "Fine (High-Res)" : (fovArcmin <= 15 ? "Standard (15')" : (fovArcmin <= 30 ? "Wide (30')" : "All-Sky Survey (60')"));
+    DOM.fovReadout.textContent = `${fovArcmin}' (${label})`;
     DOM.viewportFovTitle.textContent = `FOV: ${fovArcmin}' × ${fovArcmin}'`;
 
     document.querySelectorAll('.btn-fov').forEach(btn => {
       btn.classList.toggle('active', parseInt(btn.dataset.fov, 10) === fovArcmin);
     });
+
+    // Synchronize Aladin Lite field of view if active
+    const fovDeg = fovArcmin / 60;
+    if (state.aladinInstance && typeof state.aladinInstance.setFov === 'function') {
+      try {
+        state.aladinInstance.setFov(fovDeg);
+      } catch (e) {
+        console.warn('Aladin setFov notice:', e);
+      }
+    }
+
+    // Recalculate aperture photometry with new FOV pixel scale
+    computeAperturePhotometry();
 
     renderViewport();
 
@@ -1513,13 +1550,14 @@
     const tile = ASTRONOMICAL_CATALOG[state.activeTileKey];
     if (!tile) return;
 
+    const fovScale = 15 / state.fovArcmin;
     if (x === undefined || y === undefined) {
-      if (state.photometryCoords) {
+      if (state.photometryCoords && state.activeTool === 'photometry') {
         x = state.photometryCoords.x;
         y = state.photometryCoords.y;
       } else {
-        x = tile.targetPixelPos[0];
-        y = tile.targetPixelPos[1];
+        x = 256 + (tile.targetPixelPos[0] - 256) * fovScale;
+        y = 256 + (tile.targetPixelPos[1] - 256) * fovScale;
         state.photometryCoords = { x, y };
       }
     }
