@@ -1,10 +1,23 @@
 # 🚀 PROMETHEUS • NASA Space Apps Challenge 2026
 ## Official Scientific & Technical Documentation: Planet X and SPHEREx Discovery Engine
-**Challenge:** Planet X and SPHEREx  
-**Team:** Team Prometheus  
-**Date:** November 2026  
-**Live Submission:** [Team Prometheus Official NASA Space Apps Project Page](https://www.spaceappschallenge.org/2026/find-a-team/team-prometheus1/)  
-**GitHub Repository:** [Team.Prometheus-NASA-SPACE-APP-CHALLENGE](https://github.com/diwakarsingh07/Team.Prometheus-NASA-SPACE-APP-CHALLENGE.git)
+
+[![Live Website](https://img.shields.io/badge/Live%20Platform-www.teamprometheus.us-00e5ff?style=for-the-badge&logo=nasa&logoColor=white)](https://www.teamprometheus.us)
+[![Watch Project Video](https://img.shields.io/badge/YouTube-Video%20Demo%20%26%20Walkthrough-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=IqIKzGT_oY4)
+[![Interactive Miro Architecture](https://img.shields.io/badge/Miro-System%20Architecture%20Board-050038?style=for-the-badge&logo=miro&logoColor=ffd02f)](https://miro.com/app/live-embed/uXjVEOZ6Vq8=/?embedMode=view_only_without_ui&moveToViewport=129984%2C272133%2C2811%2C1360&embedId=363917267294)
+[![NASA Space Apps Submission](https://img.shields.io/badge/NASA%20Space%20Apps-Official%20Project%20Page-105bd8?style=for-the-badge&logo=nasa)](https://www.spaceappschallenge.org/2026/find-a-team/team-prometheus1/)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-Team%20Prometheus-181717?style=for-the-badge&logo=github)](https://github.com/diwakarsingh07/Team.Prometheus-NASA-SPACE-APP-CHALLENGE)
+
+---
+
+### 🌐 Essential Links & Live Resources
+| Resource | Destination URL | Details |
+| :--- | :--- | :--- |
+| 🪐 **Official Website** | [**https://www.teamprometheus.us**](https://www.teamprometheus.us) | Production domain hosting the entire platform (100% Client-Side Serverless PWA) |
+| 🔬 **Scientist Mode** | [**www.teamprometheus.us/scientist.html**](https://www.teamprometheus.us/scientist.html) | Full 102-band infrared slicer, aperture photometry, orbital mechanics solver & FITS tools |
+| 🔭 **Citizen Explorer** | [**www.teamprometheus.us/comare.html**](https://www.teamprometheus.us/comare.html) | Gamified discovery studio with everyday analogies & AI Science Guide |
+| 📺 **Video Walkthrough** | [**YouTube: Team Prometheus Pitch & Demo**](https://www.youtube.com/watch?v=IqIKzGT_oY4) | 3-minute video presentation and demonstration |
+| 🗺️ **Miro Architecture** | [**Miro Interactive Architecture Board**](https://miro.com/app/live-embed/uXjVEOZ6Vq8=/?embedMode=view_only_without_ui&moveToViewport=129984%2C272133%2C2811%2C1360&embedId=363917267294) | Interactive live diagram, data pipelines, and architectural wireframes |
+| 🛰️ **NASA Space Apps** | [**Official NASA Team Prometheus Page**](https://www.spaceappschallenge.org/2026/find-a-team/team-prometheus1/) | Official Global Award entry and challenge submission |
 
 ---
 
@@ -32,6 +45,11 @@
    - [6.6 URL Query Synchronization & Web Embedding](#66-url-query-synchronization--web-embedding)
    - [6.7 Dual-Mode Viewport & Live CDS Strasbourg Aladin Integration](#67-dual-mode-viewport--live-cds-strasbourg-aladin-integration)
    - [6.8 Pluggable Data Feed Selector & NASA IPAC Integration](#68-pluggable-data-feed-selector--nasa-ipac-integration)
+   - [6.9 Interactive Circular Aperture Photometry Suite](#69-interactive-circular-aperture-photometry-suite)
+   - [6.10 Keplerian Orbital Dynamics & Distance Solver](#610-keplerian-orbital-dynamics--distance-solver)
+   - [6.11 Atmospheric Molecular Absorption Line Inspector](#611-atmospheric-molecular-absorption-line-inspector)
+   - [6.12 Live FITS & WCS Astrometric Header Inspector](#612-live-fits--wcs-astrometric-header-inspector)
+   - [6.13 Tri-Format Standardized Data Export Suite (JSON, MPC-80, CSV)](#613-tri-format-standardized-data-export-suite-json-mpc-80-csv)
 7. [Module 3: Citizen Explorer — Interactive Discovery Studio (`comare.html`)](#7-module-3-citizen-explorer--interactive-discovery-studio-comarehtml)
    - [7.1 Plain-English Astrophysics & Everyday Analogies](#71-plain-english-astrophysics--everyday-analogies)
    - [7.2 Interactive Step-by-Step Target Picker](#72-interactive-step-by-step-target-picker)
@@ -320,6 +338,58 @@ A live Data Feed selector allows researchers to toggle seamlessly between:
 2. `SPHEREx Early DR1 Sky Survey (Level-2)` — Semi-annual all-sky data release.
 3. `AWS Registry of Open Data (s3://spherex-qr)` — Cloud-native S3 bucket endpoints.
 4. `Custom NASA/IPAC API Endpoint URL` — User-specified live REST URL.
+
+### 6.9 Interactive Circular Aperture Photometry Suite
+An integrated photometric measurement engine enables quantitative point-source flux determination directly on the canvas:
+* **Interactive Aperture & Sky Annulus:** Users can click anywhere on the celestial field or adjust the aperture radius ($r_{\text{ap}} = 3.0 - 15.0\,\text{px} \equiv 1.5'' - 7.5''$).
+* **Real-Time Visual Reticles:** Draws an inner green dashed aperture perimeter surrounded by cyan dotted concentric inner and outer sky background boundary rings ($r_{\text{in}} = r_{\text{ap}} + 3\,\text{px}$, $r_{\text{out}} = r_{\text{ap}} + 9\,\text{px}$).
+* **Real-Time Mathematical Pipeline:**
+  $$\text{Net Flux } F_{\text{net}} = \sum_{\text{ap}} I_i - N_{\text{pix}} \cdot \tilde{I}_{\text{sky}}$$
+  $$\text{SNR} = \frac{F_{\text{net}}}{\sqrt{F_{\text{net}} + N_{\text{pix}} \cdot \sigma_{\text{sky}}^2}}$$
+  $$\text{Apparent Magnitude } m_{\text{AB}} = 21.50 - 2.5 \log_{10}(F_{\text{net}})$$
+
+### 6.10 Keplerian Orbital Dynamics & Planet X Distance Solver
+Applies celestial mechanics and Kepler’s Third Law ($T^2 = a^3$) to evaluate whether detected shifting dipoles represent bound solar system bodies or high-velocity galactic field stars:
+* **Hypothesized Distance Exploration:** Interactive slider from $50\,\text{AU}$ (Kuiper Belt) to $1,000\,\text{AU}$ (Inner Oort Cloud), centered at $450\,\text{AU}$ for the Batygin & Brown (2016) Planet Nine hypothesis.
+* **Astrophysical Parametric Readouts:**
+  * **Orbital Period ($T$):** Calculated in Earth years ($T = a^{3/2} \approx 9,545\,\text{yr}$ at $450\,\text{AU}$).
+  * **Mean Keplerian Orbital Speed:** $v_{\text{orb}} = \sqrt{G M_\odot / a} = \frac{29.78}{\sqrt{a}}\,\text{km/s} \approx 1.40\,\text{km/s}$.
+  * **Annual Parallactic Reflex Amplitude:** $\varpi = \frac{1000}{a}\,\text{mas} \approx 2.22\,\text{mas}$ (matching SPHEREx 6-month baseline displacement).
+  * **Thermal Equilibrium Surface Temperature:** $T_{\text{eq}} \approx \frac{254}{\sqrt{a}}\,\text{K} \approx 12.1\,\text{K}$ (confirming why optical telescopes cannot see it, but SPHEREx thermal infrared channels detect it).
+  * **Automated Kinematic Verdict:** Distinguishes between Keplerian Bound TNOs and Galactic High-Proper-Motion stars.
+
+### 6.11 Atmospheric Molecular Absorption Line Inspector
+Directly integrated into the 102-channel spectrophotometry module to identify diagnostic volatile species in cold planetary and stellar atmospheres:
+* **Interactive Chemical Species Selectors:**
+  * ❄️ **Methane ($\text{CH}_4$):** $1.66\,\mu\text{m}$, $2.30\,\mu\text{m}$, and $3.30\,\mu\text{m}$ (fundamental $\nu_3$ stretching and overtone bands diagnostic of planetary atmospheres and cold brown dwarfs at $T < 50\,\text{K}$).
+  * 💧 **Water Ice ($\text{H}_2\text{O}$):** $1.45\,\mu\text{m}$, $1.95\,\mu\text{m}$, and $3.05\,\mu\text{m}$ (characteristic of outer solar system icy surfaces and clouds).
+  * 🧊 **Carbon Dioxide Ice ($\text{CO}_2$):** $4.26\,\mu\text{m}$ (asymmetric stretching resonance separating rocky/dwarf surfaces from gas giants).
+  * 💨 **Carbon Monoxide ($\text{CO}$):** $4.67\,\mu\text{m}$ (ro-vibrational band tracing primordial nebular condensation).
+  * ⚡ **Ammonia Ice ($\text{NH}_3$):** $2.00\,\mu\text{m}$ and $2.95\,\mu\text{m}$ (diagnostic marker for T-dwarf to Y-dwarf atmospheric transitions).
+* **Dynamic Diagnostics Callout:** Highlights the exact physical interpretation in real time.
+
+### 6.12 Live FITS & WCS Astrometric Header Inspector
+Provides an authentic modal console displaying IAU FITS Standard 4.0 header metadata:
+* Displays live astronomical keywords: `SIMPLE`, `BITPIX`, `NAXIS`, `CRPIX1/2`, `CRVAL1/2` (exact dynamic RA/Dec in degrees), `CDELT1/2` ($-0.500''/\text{px}$ scale), `CTYPE` (Gnomonic TAN projection), `TELESCOP='NASA SPHEREx'`, `FILTER`, `EXPTIME`, `OBS_DATE`.
+* Includes an instant **"Copy Header (80-col)"** feature for documentation in astronomical journals.
+
+### 6.13 Tri-Format Standardized Data Export Suite
+Clicking "Export Report" opens a multi-format dialog supporting:
+1. **NASA Certified Discovery Dossier (JSON):** Full metadata, 102-band flux profiles, flagged targets, and telescope telemetry.
+2. **IAU Minor Planet Center (MPC) 80-Column Astrometry (.txt):** Official standardized MPC format used by the International Astronomical Union and NASA Planetary Defense:
+   ```text
+   COD C49
+   CON Team Prometheus Planetary Discovery Pipeline (SPHEREx 2026)
+   OBS D. Sharma, Team Prometheus Automated Transit Processor
+   MEA D. Sharma, Astrometric Difference Engine
+   TEL 0.20-m f/3 linear variable filter space telescope + CCD
+   ACK MPCReport-SPHEREx-2026-X1
+   AC2 idiwakarsharma@gmail.com
+   NET Gaia-DR3
+        K26X01* C2026 03 15.35014 04 32 11.20 +16 24 05.0          21.4 R      C49
+        K26X01  C2026 09 15.41290 04 32 11.64 +16 24 07.6          21.5 R      C49
+   ```
+3. **102-Band Spectrophotometric Data Table (.csv):** Comprehensive tabular output listing all 102 channels, exact wavelengths ($0.75 - 5.00\,\mu\text{m}$), detector arrays (Arrays 1-6 SWIR/MWIR), flux density in $\mu\text{Jy}$ and $\text{MJy/sr}$, SNR, and identified molecular absorption features.
 
 ---
 
